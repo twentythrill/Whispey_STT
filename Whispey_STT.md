@@ -12,6 +12,8 @@ Build and maintain **Whispey STT**, an Android custom keyboard (Input Method Edi
 - Audio capture is handled by `AudioRecord`, using PCM 16-bit, 16 kHz, mono.
 - Audio is buffered only in memory as PCM bytes, then encoded to WAV in memory before upload.
 - Networking uses OkHttp multipart POST requests to `https://api.openai.com/v1/audio/transcriptions`.
+- Transcription model: `gpt-4o-mini-transcribe`.
+- Transcription prompt: `Multilingual speech. Preserve all languages as spoken, do not translate.`
 - Async work uses Kotlin coroutines.
 - The OpenAI API key is stored in `EncryptedSharedPreferences`.
 
@@ -19,8 +21,8 @@ Build and maintain **Whispey STT**, an Android custom keyboard (Input Method Edi
 
 - Min SDK: 26.
 - Target SDK: 34.
-- Model: `whisper-1`.
-- Do not specify language, so Whisper auto-detects multilingual input.
+- Model: `gpt-4o-mini-transcribe`.
+- Do not specify language, so the transcription model auto-detects multilingual input.
 - No audio files, cache files, MediaStore entries, local databases, or temp files.
 - Use `getCurrentInputConnection().commitText(transcribedText, 1)` for insertion.
 - Injected transcriptions should include exactly one trailing space after the trimmed text so consecutive recordings do not attach to the previous word.

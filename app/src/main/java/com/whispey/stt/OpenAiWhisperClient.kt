@@ -19,7 +19,8 @@ class OpenAiWhisperClient {
     fun transcribe(apiKey: String, wavBytes: ByteArray): String {
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("model", "whisper-1")
+            .addFormDataPart("model", TRANSCRIPTION_MODEL)
+            .addFormDataPart("prompt", TRANSCRIPTION_PROMPT)
             .addFormDataPart(
                 "file",
                 "recording.wav",
@@ -47,5 +48,11 @@ class OpenAiWhisperClient {
             val error = JSONObject(raw).optJSONObject("error")
             error?.optString("message").orEmpty()
         }.getOrDefault("")
+    }
+
+    companion object {
+        private const val TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe"
+        private const val TRANSCRIPTION_PROMPT =
+            "Multilingual speech. Preserve all languages as spoken, do not translate."
     }
 }
