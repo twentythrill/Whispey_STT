@@ -1,0 +1,7 @@
+<resources>
+    <color name="bg_near_black">#111111</color>
+    <color name="surface_dark">#1E1E1E</color>
+    <color name="text_primary">#E0E0E0</color>
+    <color name="accent">#635DFF</color>
+    <color name="muted_red">#C46A6A</color>
+</resources>
