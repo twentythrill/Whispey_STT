@@ -1,6 +1,8 @@
-# Whispey STT_
+# Whispey STT
 
 Whispey STT is a minimal Android voice-to-text keyboard powered by the OpenAI Whisper API. It registers as a custom Input Method Editor (IME), records speech in memory, sends a WAV buffer to Whisper, and commits the transcribed text into the active text field.
+
+![Project Screenshot](images/screenshot.png)
 
 ## Features
 
