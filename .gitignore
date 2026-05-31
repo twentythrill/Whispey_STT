@@ -1,9 +1,40 @@
+# Gradle files
 .gradle/
 .kotlin/
 build/
 app/build/
+
+# Release assets are uploaded to GitHub releases, not committed.
 release/*.apk
+
+# Local configuration
 local.properties
+
+# Log/OS files
+*.log
+.DS_Store
+
+# Android Studio generated files and folders
+captures/
+.externalNativeBuild/
+.cxx/
+*.aab
+*.apk
+output-metadata.json
+
+# IntelliJ
 *.iml
 .idea/
-.DS_Store
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+
+# Keystore files
+*.jks
+*.keystore
+
+# Google services
+google-services.json
+
+# Android profiling
+*.hprof
