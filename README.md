@@ -4,8 +4,6 @@ Whispey STT is a minimal Android voice-to-text keyboard powered by the OpenAI tr
 
 ![Project Screenshot](images/screenshot.png)
 
-![Project Screenshot](images/screenshot.png)
-
 ## Features
 
 - Custom Android IME with no traditional keyboard keys.
