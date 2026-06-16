@@ -1,11 +1,11 @@
 package com.whispey.stt
 
 import android.app.Application
-import androidx.appcompat.app.AppCompatDelegate
 
 class WhispeyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        // Apply the user's saved theme preference (dark / light / follow system).
+        WhispeyPrefs.applyTheme(this)
     }
 }

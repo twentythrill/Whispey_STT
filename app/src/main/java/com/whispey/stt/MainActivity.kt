@@ -3,7 +3,6 @@ package com.whispey.stt
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
@@ -33,11 +32,11 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(dp(24), dp(24), dp(24), dp(24))
-            setBackgroundColor(Color.rgb(17, 17, 17))
+            setBackgroundColor(WhispeyTheme.background(this@MainActivity))
 
             addView(TextView(this@MainActivity).apply {
                 text = "Whispey STT"
-                setTextColor(Color.rgb(224, 224, 224))
+                setTextColor(WhispeyTheme.textPrimary(this@MainActivity))
                 textSize = 26f
                 gravity = Gravity.CENTER
             })

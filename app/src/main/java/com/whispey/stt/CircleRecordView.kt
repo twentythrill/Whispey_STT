@@ -3,7 +3,6 @@ package com.whispey.stt
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.View
@@ -48,9 +47,9 @@ class CircleRecordView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         paint.color = when (state) {
-            State.Idle -> Color.rgb(42, 42, 42)
-            State.Recording -> Color.rgb(240, 240, 240)
-            State.Processing -> Color.rgb(84, 84, 84)
+            State.Idle -> WhispeyTheme.circleIdle(context)
+            State.Recording -> WhispeyTheme.circleRecording(context)
+            State.Processing -> WhispeyTheme.circleProcessing(context)
         }
         val radius = min(width, height) * 0.5f * pulseScale
         canvas.drawCircle(width / 2f, height / 2f, radius, paint)

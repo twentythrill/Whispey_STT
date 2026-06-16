@@ -3,7 +3,9 @@ package com.whispey.stt
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import androidx.core.content.ContextCompat
@@ -45,6 +47,10 @@ class InMemoryAudioRecorder(private val context: Context) {
             error("Could not initialize microphone")
         }
 
+        // Route to the user's preferred input device when it is currently
+        // connected; otherwise leave the default (phone mic) in place.
+        applyPreferredDevice(recorder)
+
         recording.set(true)
         recorder.startRecording()
         worker = Thread {
@@ -75,6 +81,43 @@ class InMemoryAudioRecorder(private val context: Context) {
         val pcm = synchronized(pcmBuffer) { pcmBuffer.toByteArray() }
         pcmBuffer.reset()
         return WavEncoder.pcm16MonoToWav(pcm)
+    }
+
+    /**
+     * Applies the saved preferred input device to [recorder] when it is currently
+     * connected.
+     *
+     * Matching is anchored on the device TYPE (e.g. TYPE_BLUETOOTH_SCO), which is
+     * stable across disconnect/reconnect, unlike the AudioDeviceInfo id which the
+     * system reassigns each time a Bluetooth/USB device reconnects. The product
+     * name is used only as a tiebreaker when several inputs share the same type.
+     *
+     * If nothing matches (the device is disconnected), the recorder keeps its
+     * default routing — the phone microphone — which is the graceful fallback.
+     */
+    private fun applyPreferredDevice(recorder: AudioRecord) {
+        val savedType = WhispeyPrefs.preferredAudioDeviceType(context)
+        if (savedType == WhispeyPrefs.AUDIO_TYPE_NONE) return
+
+        val savedName = WhispeyPrefs.preferredAudioDeviceName(context)
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val inputs = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            .filter { it.isSource }
+
+        val sameType = inputs.filter { it.type == savedType }
+        val match: AudioDeviceInfo? = when {
+            sameType.isEmpty() -> null
+            sameType.size == 1 -> sameType.first()
+            // Multiple inputs of the same type: prefer one whose product name matches.
+            else -> sameType.firstOrNull {
+                savedName.isNotEmpty() &&
+                    savedName.contains(it.productName?.toString()?.trim().orEmpty(), ignoreCase = true)
+            } ?: sameType.first()
+        }
+
+        if (match != null) {
+            runCatching { recorder.preferredDevice = match }
+        }
     }
 
     fun cancel() {

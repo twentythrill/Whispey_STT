@@ -2,7 +2,6 @@ package com.whispey.stt
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.TextView
@@ -23,8 +22,8 @@ class PermissionActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(TextView(this).apply {
-            setBackgroundColor(Color.rgb(17, 17, 17))
-            setTextColor(Color.rgb(224, 224, 224))
+            setBackgroundColor(WhispeyTheme.background(this@PermissionActivity))
+            setTextColor(WhispeyTheme.textPrimary(this@PermissionActivity))
             gravity = Gravity.CENTER
             text = "Microphone permission is required."
         })

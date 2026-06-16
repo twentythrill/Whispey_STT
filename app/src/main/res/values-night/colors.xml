@@ -1,0 +1,15 @@
+<resources>
+    <!-- Semantic colors (DARK overrides) -->
+    <color name="whispey_background">#111111</color>
+    <color name="whispey_surface">#1E1E1E</color>
+    <color name="whispey_text_primary">#E0E0E0</color>
+    <color name="whispey_text_secondary">#969696</color>
+    <color name="whispey_hint">#828282</color>
+    <color name="whispey_error">#C46A6A</color>
+
+    <!-- Keyboard / circle states (DARK) -->
+    <color name="whispey_circle_idle">#2A2A2A</color>
+    <color name="whispey_circle_recording">#F0F0F0</color>
+    <color name="whispey_circle_processing">#545454</color>
+    <color name="whispey_icon_tint">#E0E0E0</color>
+</resources>
