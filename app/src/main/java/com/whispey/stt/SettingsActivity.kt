@@ -7,16 +7,19 @@ import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 
@@ -59,11 +62,19 @@ class SettingsActivity : AppCompatActivity() {
             setPadding(dp(14), dp(10), dp(14), dp(10))
         }
 
+        val scrollView = ScrollView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            setBackgroundColor(WhispeyTheme.background(ctx))
+        }
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(24), dp(28), dp(24), dp(24))
-            setBackgroundColor(WhispeyTheme.background(ctx))
         }
+        scrollView.addView(root)
 
         root.addView(TextView(this).apply {
             text = "Whispey STT"
@@ -119,6 +130,135 @@ class SettingsActivity : AppCompatActivity() {
             }
         }, matchWidth().apply { topMargin = dp(8) })
 
+        // ---- Custom Vocabulary & Phonetic Replacement ----
+        root.addView(sectionLabel("Custom Vocabulary"))
+        root.addView(TextView(this).apply {
+            text = "Add custom words or sound-alike replacement rules. Standalone words (e.g. Orukeet, PsychAudio) are automatically matched phonetically. Explicit aliases can be defined as 'alias1, alias2 -> Target'."
+            setTextColor(textSecondary)
+            textSize = 13f
+        }, matchWidth().apply { topMargin = dp(4) })
+
+        val vocabListContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        fun refreshVocabList() {
+            vocabListContainer.removeAllViews()
+            val currentRules = WhispeyPrefs.customVocabulary(ctx)
+            if (currentRules.isEmpty()) {
+                vocabListContainer.addView(TextView(ctx).apply {
+                    text = "No custom vocabulary entries yet."
+                    setTextColor(textSecondary)
+                    textSize = 13f
+                    setPadding(0, dp(8), 0, dp(8))
+                })
+                return
+            }
+
+            for (rule in currentRules) {
+                val row = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setBackgroundColor(surface)
+                    setPadding(dp(12), dp(8), dp(8), dp(8))
+                }
+
+                val textColumn = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+
+                textColumn.addView(TextView(ctx).apply {
+                    text = rule.target
+                    setTextColor(textPrimary)
+                    textSize = 15f
+                })
+
+                if (rule.aliases.isNotEmpty()) {
+                    textColumn.addView(TextView(ctx).apply {
+                        text = "Aliases: ${rule.aliases.joinToString(", ")}"
+                        setTextColor(textSecondary)
+                        textSize = 12f
+                    })
+                } else {
+                    textColumn.addView(TextView(ctx).apply {
+                        text = "Auto fuzzy & phonetic matching (≥5 chars)"
+                        setTextColor(textSecondary)
+                        textSize = 11f
+                    })
+                }
+
+                row.addView(textColumn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+
+                val deleteBtn = Button(ctx).apply {
+                    text = "✕"
+                    setTextColor(WhispeyTheme.error(ctx))
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    textSize = 16f
+                    setPadding(dp(8), dp(4), dp(8), dp(4))
+                    setOnClickListener {
+                        val updated = WhispeyPrefs.customVocabulary(ctx).filterNot {
+                            it.target.equals(rule.target, ignoreCase = true) && it.aliases == rule.aliases
+                        }
+                        WhispeyPrefs.saveCustomVocabulary(ctx, updated)
+                        refreshVocabList()
+                    }
+                }
+                row.addView(deleteBtn, LinearLayout.LayoutParams(dp(44), dp(44)))
+
+                vocabListContainer.addView(row, matchWidth().apply { topMargin = dp(6) })
+            }
+        }
+
+        val vocabInput = EditText(this).apply {
+            hint = "e.g. Orukeet or cloud -> Claude"
+            setHintTextColor(WhispeyTheme.hint(ctx))
+            setTextColor(textPrimary)
+            setSingleLine(true)
+            setBackgroundColor(surface)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+        }
+
+        val addBtn = Button(this).apply {
+            text = "Add"
+            setOnClickListener {
+                val inputStr = vocabInput.text.toString().trim()
+                if (inputStr.isEmpty()) return@setOnClickListener
+                val rule = CustomVocabularyManager.VocabularyRule.fromEntryString(inputStr)
+                if (rule == null) {
+                    Toast.makeText(ctx, "Invalid format", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val current = WhispeyPrefs.customVocabulary(ctx).toMutableList()
+                current.removeAll { it.target.equals(rule.target, ignoreCase = true) }
+                current.add(rule)
+                WhispeyPrefs.saveCustomVocabulary(ctx, current)
+                vocabInput.setText("")
+                refreshVocabList()
+            }
+        }
+
+        val inputRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(vocabInput, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(addBtn, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                leftMargin = dp(8)
+            })
+        }
+
+        root.addView(inputRow, matchWidth().apply { topMargin = dp(8) })
+        root.addView(vocabListContainer, matchWidth().apply { topMargin = dp(4) })
+
+        val editAsTextBtn = Button(this).apply {
+            text = "Bulk edit as text"
+            setOnClickListener {
+                showBulkEditDialog(ctx) { refreshVocabList() }
+            }
+        }
+        root.addView(editAsTextBtn, matchWidth().apply { topMargin = dp(6) })
+
+        refreshVocabList()
+
         // ---- Theme dropdown ----
         root.addView(sectionLabel("Theme"))
         root.addView(buildThemeSpinner(), matchWidth().apply { topMargin = dp(6) })
@@ -159,7 +299,49 @@ class SettingsActivity : AppCompatActivity() {
             textSize = 13f
         }, matchWidth().apply { topMargin = dp(32) })
 
-        return root
+        return scrollView
+    }
+
+    private fun showBulkEditDialog(context: Context, onSaved: () -> Unit) {
+        val currentRules = WhispeyPrefs.customVocabulary(context)
+        val initialText = currentRules.joinToString("\n") { it.toEntryString() }
+
+        val editText = EditText(context).apply {
+            setText(initialText)
+            setTextColor(WhispeyTheme.textPrimary(context))
+            setHintTextColor(WhispeyTheme.hint(context))
+            hint = "One entry per line:\nTargetWord\nalias1, alias2 -> TargetWord"
+            inputType = InputType.TYPE_CLASS_TEXT or
+                InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            minLines = 8
+            gravity = Gravity.TOP or Gravity.START
+            setBackgroundColor(WhispeyTheme.surface(context))
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+        }
+
+        val container = LinearLayout(context).apply {
+            setPadding(dp(20), dp(12), dp(20), dp(12))
+            addView(editText, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ))
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle("Custom Vocabulary")
+            .setView(container)
+            .setPositiveButton("Save") { _, _ ->
+                val lines = editText.text.toString().lines()
+                val parsed = lines.mapNotNull {
+                    CustomVocabularyManager.VocabularyRule.fromEntryString(it)
+                }
+                WhispeyPrefs.saveCustomVocabulary(context, parsed)
+                Toast.makeText(context, "Vocabulary saved", Toast.LENGTH_SHORT).show()
+                onSaved()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun buildThemeSpinner(): Spinner {

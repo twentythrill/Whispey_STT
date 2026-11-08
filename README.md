@@ -17,6 +17,11 @@ Whispey STT is a minimal Android voice-to-text keyboard (`InputMethodService`) f
   - Standalone post-processing pipeline (`TranscriptionCleaner`) strips hesitation tokens in English and Italian (`um`, `uh`, `uhm`, `umm`, `ehm`, `emm`, `erm`, `ahm`, `uhh`, `ehh`, `hmm`, `hm`, `mm`, `mmm`) with word boundary precision.
   - Automatically cleans leading commas, collapsed double commas, spacing before punctuation, and re-capitalizes sentence beginnings.
   - Cloud Whisper prompt configured with `"Clean transcription without filler words."` for native suppression.
+- **Custom Vocabulary & Phonetic Replacement:**
+  - **Stage A — Explicit Sound-Alike Aliases:** Define recurring phonetic misspellings that map directly to your target words (e.g. `auru kit, oru kit -> Orukeet` or `cloud -> Claude`). Multi-word aliases match before single words.
+  - **Stage B — Automatic Fuzzy & Phonetic Matching:** Standalone target terms ($\ge 5$ characters, e.g. `Orukeet`, `PsychAudio`, `MiraeBot`) automatically match close phonetic variations over 1–3 word sliding windows using normalized Levenshtein similarity and phonetic skeleton matching (`ph->f`, `ck/k/qu/ch->c`, `z->s`, `y->i`, `w->v`, `oo/ou->u`, `ee/ea->i`, collapsing double letters). Surrounding punctuation and spacing are preserved.
+  - **Cloud Whisper Biasing:** Standalone custom vocabulary terms are dynamically injected into the Whisper API `prompt` glossary (truncated safely within the 224-token limit).
+  - **Settings Manager:** Add, view, delete individual entries, or bulk-edit all rules as plain text via an integrated editor.
 - **Disk-Backed Audio Capture:**
   - Records 16 kHz, 16-bit mono PCM directly to a temporary `.wav` file in `cacheDir`.
   - Zero heap bloat: no boxed floats or massive byte arrays in RAM during long recording sessions.

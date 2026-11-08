@@ -18,11 +18,12 @@ class OpenAiWhisperClient {
         .writeTimeout(90, TimeUnit.SECONDS)
         .build()
 
-    fun transcribe(apiKey: String, audioFile: File): String {
+    fun transcribe(apiKey: String, audioFile: File, targetWords: List<String> = emptyList()): String {
+        val prompt = buildPrompt(targetWords)
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("model", TRANSCRIPTION_MODEL)
-            .addFormDataPart("prompt", TRANSCRIPTION_PROMPT)
+            .addFormDataPart("prompt", prompt)
             .addFormDataPart(
                 "file",
                 audioFile.name,
@@ -33,11 +34,12 @@ class OpenAiWhisperClient {
         return executeRequest(apiKey, body)
     }
 
-    fun transcribe(apiKey: String, wavBytes: ByteArray): String {
+    fun transcribe(apiKey: String, wavBytes: ByteArray, targetWords: List<String> = emptyList()): String {
+        val prompt = buildPrompt(targetWords)
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("model", TRANSCRIPTION_MODEL)
-            .addFormDataPart("prompt", TRANSCRIPTION_PROMPT)
+            .addFormDataPart("prompt", prompt)
             .addFormDataPart(
                 "file",
                 "recording.wav",
@@ -46,6 +48,23 @@ class OpenAiWhisperClient {
             .build()
 
         return executeRequest(apiKey, body)
+    }
+
+    private fun buildPrompt(targetWords: List<String>): String {
+        val base = "Clean transcription without filler words."
+        if (targetWords.isEmpty()) {
+            return "$base Multilingual speech, preserve spoken languages without translation."
+        }
+        val sb = StringBuilder(base).append(" Glossary: ")
+        var first = true
+        for (word in targetWords.distinct()) {
+            val addition = if (first) word else ", $word"
+            // Whisper 224-token prompt limit guard (~420 characters safe buffer)
+            if (sb.length + addition.length > 420) break
+            sb.append(addition)
+            first = false
+        }
+        return sb.toString()
     }
 
     private fun executeRequest(apiKey: String, body: MultipartBody): String {

@@ -121,4 +121,24 @@ object WhispeyPrefs {
             .putString(KEY_TRANSCRIPTION_BACKEND, if (useCloud) BACKEND_CLOUD else BACKEND_LOCAL)
             .apply()
     }
+
+    // ---- Custom Vocabulary & Phonetic Replacement ----
+
+    private const val KEY_CUSTOM_VOCABULARY = "custom_vocabulary"
+
+    fun customVocabulary(context: Context): List<CustomVocabularyManager.VocabularyRule> {
+        val raw = encrypted(context).getString(KEY_CUSTOM_VOCABULARY, null)
+            ?: return defaultVocabulary()
+        return raw.lines()
+            .mapNotNull { CustomVocabularyManager.VocabularyRule.fromEntryString(it) }
+    }
+
+    fun saveCustomVocabulary(context: Context, rules: List<CustomVocabularyManager.VocabularyRule>) {
+        val raw = rules.joinToString("\n") { it.toEntryString() }
+        encrypted(context).edit().putString(KEY_CUSTOM_VOCABULARY, raw).apply()
+    }
+
+    private fun defaultVocabulary(): List<CustomVocabularyManager.VocabularyRule> = listOf(
+        CustomVocabularyManager.VocabularyRule("Orukeet", listOf("auru kit", "oru kit"))
+    )
 }

@@ -342,9 +342,10 @@ class WhispeyImeService : InputMethodService() {
             }
 
             val apiKey = WhispeyPrefs.apiKey(this)
+            val customWords = WhispeyPrefs.customVocabulary(this).map { it.target }
             scope.launch {
                 val result = withContext(Dispatchers.IO) {
-                    runCatching { whisperClient.transcribe(apiKey, wavFile) }
+                    runCatching { whisperClient.transcribe(apiKey, wavFile, customWords) }
                 }
 
                 result.onSuccess { text ->
@@ -375,7 +376,7 @@ class WhispeyImeService : InputMethodService() {
     }
 
     private fun commitTranscription(text: String) {
-        val cleaned = TranscriptionCleaner.cleanTranscription(text)
+        val cleaned = TranscriptionCleaner.cleanTranscription(this, text)
         if (cleaned.isBlank()) return
 
         val inputConnection: InputConnection? = currentInputConnection
