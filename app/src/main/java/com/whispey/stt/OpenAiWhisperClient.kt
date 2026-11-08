@@ -74,6 +74,6 @@ class OpenAiWhisperClient {
     companion object {
         private const val TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe"
         private const val TRANSCRIPTION_PROMPT =
-            "Multilingual speech. Preserve all languages as spoken, do not translate."
+            "Clean transcription without filler words. Multilingual speech, preserve spoken languages without translation."
     }
 }

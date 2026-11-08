@@ -140,6 +140,8 @@ class WhispeyImeService : InputMethodService() {
         )
 
         val iconTint = WhispeyTheme.iconTint(ctx)
+        val colorActive = Color.parseColor("#FFFFFF")
+        val colorInactive = Color.parseColor("#666666")
 
         // Top-center: Local Orukeet vs Cloud Whisper toggle switch with minimal icons
         val toggleContainer = LinearLayout(ctx).apply {
@@ -150,30 +152,38 @@ class WhispeyImeService : InputMethodService() {
 
         val localIcon = ImageView(ctx).apply {
             setImageResource(R.drawable.ic_cpu)
-            setColorFilter(iconTint)
             layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
             contentDescription = "Local Orukeet"
         }
 
         val cloudIcon = ImageView(ctx).apply {
             setImageResource(R.drawable.ic_cloud)
-            setColorFilter(iconTint)
             layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
             contentDescription = "Cloud Whisper"
         }
 
-        val modeSwitch = Switch(ctx).apply {
+        val modeSwitch = MonochromeToggleSwitch(ctx).apply {
             isChecked = WhispeyPrefs.isCloudSelected(ctx)
-            setPadding(dp(6), 0, dp(6), 0)
         }
 
         fun updateToggleVisuals(isCloud: Boolean) {
-            localIcon.alpha = if (isCloud) 0.35f else 1.0f
-            cloudIcon.alpha = if (isCloud) 1.0f else 0.35f
+            if (isCloud) {
+                // Cloud Whisper active
+                localIcon.setColorFilter(colorInactive)
+                localIcon.alpha = 0.5f
+                cloudIcon.setColorFilter(colorActive)
+                cloudIcon.alpha = 1.0f
+            } else {
+                // Local Orukeet active
+                localIcon.setColorFilter(colorActive)
+                localIcon.alpha = 1.0f
+                cloudIcon.setColorFilter(colorInactive)
+                cloudIcon.alpha = 0.5f
+            }
         }
         updateToggleVisuals(modeSwitch.isChecked)
 
-        modeSwitch.setOnCheckedChangeListener { _, isChecked ->
+        modeSwitch.setOnCheckedChangeListener { isChecked ->
             maybeHaptic()
             WhispeyPrefs.saveCloudSelected(ctx, isChecked)
             updateToggleVisuals(isChecked)
@@ -191,7 +201,14 @@ class WhispeyImeService : InputMethodService() {
         }
 
         toggleContainer.addView(localIcon)
-        toggleContainer.addView(modeSwitch)
+        val switchParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            leftMargin = dp(8)
+            rightMargin = dp(8)
+        }
+        toggleContainer.addView(modeSwitch, switchParams)
         toggleContainer.addView(cloudIcon)
 
         root.addView(
@@ -358,12 +375,15 @@ class WhispeyImeService : InputMethodService() {
     }
 
     private fun commitTranscription(text: String) {
+        val cleaned = TranscriptionCleaner.cleanTranscription(text)
+        if (cleaned.isBlank()) return
+
         val inputConnection: InputConnection? = currentInputConnection
         if (inputConnection == null) {
             showError("No active text field.")
             return
         }
-        inputConnection.commitText("${text.trimEnd()} ", 1)
+        inputConnection.commitText("${cleaned.trimEnd()} ", 1)
     }
 
     /** Builds a uniformly-sized, transparent corner icon button. */

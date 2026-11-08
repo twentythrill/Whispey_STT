@@ -41,6 +41,20 @@ class MainActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER
             })
 
+            addView(android.widget.EditText(this@MainActivity).apply {
+                hint = "Tap here to test keyboard"
+                setHintTextColor(WhispeyTheme.hint(this@MainActivity))
+                setTextColor(WhispeyTheme.textPrimary(this@MainActivity))
+                setBackgroundColor(WhispeyTheme.surface(this@MainActivity))
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+            }, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(20)
+                bottomMargin = dp(16)
+            })
+
             addView(Button(this@MainActivity).apply {
                 text = "Open keyboard settings"
                 setOnClickListener { startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) }

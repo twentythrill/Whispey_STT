@@ -8,10 +8,15 @@ Whispey STT is a minimal Android voice-to-text keyboard (`InputMethodService`) f
   - **Local Orukeet (Offline):** 25-language FastConformer-TDT 0.6B v3 model exported to INT8 ONNX and executed on-device via `sherpa-onnx`. Zero internet required, complete privacy, no cloud latency or API billing.
   - **Cloud Whisper API:** Streams audio directly to OpenAI's speech-to-text endpoint (`gpt-4o-mini-transcribe`).
 - **Top-Center Backend Toggle:**
-  - Compact toggle switch at the top center of the keyboard layout.
-  - Left icon (Microchip): Local Orukeet (offline).
-  - Right icon (Cloud): Cloud Whisper API (online).
+  - Compact, strictly monochrome high-contrast toggle switch at the top center of the keyboard layout.
+  - Custom 1.5dp bordered track that guarantees pill outline visibility against dark mode backgrounds.
+  - Left icon (Microchip): Local Orukeet (offline). Shifts to bright white (`#FFFFFF`) when active.
+  - Right icon (Cloud): Cloud Whisper API (online). Shifts to bright white (`#FFFFFF`) when active.
   - Can be switched freely at any time, including **while actively recording** without interrupting audio capture.
+- **Vocal Hesitation & Filler Word Suppression:**
+  - Standalone post-processing pipeline (`TranscriptionCleaner`) strips hesitation tokens in English and Italian (`um`, `uh`, `uhm`, `umm`, `ehm`, `emm`, `erm`, `ahm`, `uhh`, `ehh`, `hmm`, `hm`, `mm`, `mmm`) with word boundary precision.
+  - Automatically cleans leading commas, collapsed double commas, spacing before punctuation, and re-capitalizes sentence beginnings.
+  - Cloud Whisper prompt configured with `"Clean transcription without filler words."` for native suppression.
 - **Disk-Backed Audio Capture:**
   - Records 16 kHz, 16-bit mono PCM directly to a temporary `.wav` file in `cacheDir`.
   - Zero heap bloat: no boxed floats or massive byte arrays in RAM during long recording sessions.
