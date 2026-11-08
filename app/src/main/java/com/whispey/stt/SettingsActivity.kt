@@ -71,7 +71,45 @@ class SettingsActivity : AppCompatActivity() {
             textSize = 24f
         })
 
-        root.addView(apiKeyInput, matchWidth().apply { topMargin = dp(28) })
+        // ---- Orukeet Local Offline Engine ----
+        root.addView(sectionLabel("Local Engine (Orukeet)"))
+        root.addView(TextView(this).apply {
+            text = "Offline multilingual FastConformer-TDT model (sherpa-onnx). Runs locally on-device without internet or API key."
+            setTextColor(textSecondary)
+            textSize = 13f
+        }, matchWidth().apply { topMargin = dp(4) })
+
+        val modelDir = OrukeetEngine.getModelDirectory(ctx)
+        val modelsPresent = OrukeetEngine.areModelFilesPresent(ctx)
+
+        val statusView = TextView(this).apply {
+            if (modelsPresent) {
+                text = "● Model detected & ready"
+                setTextColor(0xFF4CAF50.toInt()) // Soft green
+            } else {
+                text = "● Model files missing"
+                setTextColor(WhispeyTheme.error(ctx))
+            }
+            textSize = 14f
+            setPadding(0, dp(6), 0, dp(2))
+        }
+        root.addView(statusView, matchWidth())
+
+        root.addView(TextView(this).apply {
+            text = "Location: ${modelDir.absolutePath}"
+            setTextColor(textSecondary)
+            textSize = 11f
+        }, matchWidth())
+
+        // ---- Cloud Whisper Engine ----
+        root.addView(sectionLabel("Cloud Engine (OpenAI Whisper)"))
+        root.addView(TextView(this).apply {
+            text = "Transcribes speech via OpenAI Whisper cloud API."
+            setTextColor(textSecondary)
+            textSize = 13f
+        }, matchWidth().apply { topMargin = dp(4) })
+
+        root.addView(apiKeyInput, matchWidth().apply { topMargin = dp(8) })
 
         root.addView(Button(this).apply {
             text = "Save API key"
@@ -79,7 +117,7 @@ class SettingsActivity : AppCompatActivity() {
                 WhispeyPrefs.saveApiKey(ctx, apiKeyInput.text.toString())
                 Toast.makeText(ctx, "Saved", Toast.LENGTH_SHORT).show()
             }
-        }, matchWidth().apply { topMargin = dp(12) })
+        }, matchWidth().apply { topMargin = dp(8) })
 
         // ---- Theme dropdown ----
         root.addView(sectionLabel("Theme"))

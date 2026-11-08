@@ -14,6 +14,10 @@ object WhispeyPrefs {
     private const val KEY_AUDIO_DEVICE_ID = "audio_device_id"
     private const val KEY_AUDIO_DEVICE_NAME = "audio_device_name"
     private const val KEY_AUDIO_DEVICE_TYPE = "audio_device_type"
+    private const val KEY_TRANSCRIPTION_BACKEND = "transcription_backend"
+
+    const val BACKEND_LOCAL = "local"
+    const val BACKEND_CLOUD = "cloud"
 
     // Sentinel for "no specific type" (used by the System default option).
     const val AUDIO_TYPE_NONE = 0
@@ -106,4 +110,15 @@ object WhispeyPrefs {
 
     fun hasPreferredAudioDevice(context: Context): Boolean =
         preferredAudioDeviceType(context) != AUDIO_TYPE_NONE
+
+    // ---- Transcription backend (Local Orukeet vs Cloud Whisper) ----
+
+    fun isCloudSelected(context: Context): Boolean =
+        encrypted(context).getString(KEY_TRANSCRIPTION_BACKEND, BACKEND_LOCAL) == BACKEND_CLOUD
+
+    fun saveCloudSelected(context: Context, useCloud: Boolean) {
+        encrypted(context).edit()
+            .putString(KEY_TRANSCRIPTION_BACKEND, if (useCloud) BACKEND_CLOUD else BACKEND_LOCAL)
+            .apply()
+    }
 }

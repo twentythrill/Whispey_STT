@@ -38,3 +38,15 @@ google-services.json
 
 # Android profiling
 *.hprof
+
+# Agent guidelines
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+
+# Models and large binaries (sherpa-onnx / Orukeet)
+*.onnx
+*.tar.bz2
+orukeet/
+models/
+model/

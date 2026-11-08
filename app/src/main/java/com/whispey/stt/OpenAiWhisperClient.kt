@@ -4,8 +4,10 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -15,6 +17,21 @@ class OpenAiWhisperClient {
         .readTimeout(90, TimeUnit.SECONDS)
         .writeTimeout(90, TimeUnit.SECONDS)
         .build()
+
+    fun transcribe(apiKey: String, audioFile: File): String {
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("model", TRANSCRIPTION_MODEL)
+            .addFormDataPart("prompt", TRANSCRIPTION_PROMPT)
+            .addFormDataPart(
+                "file",
+                audioFile.name,
+                audioFile.asRequestBody("audio/wav".toMediaType())
+            )
+            .build()
+
+        return executeRequest(apiKey, body)
+    }
 
     fun transcribe(apiKey: String, wavBytes: ByteArray): String {
         val body = MultipartBody.Builder()
@@ -28,6 +45,10 @@ class OpenAiWhisperClient {
             )
             .build()
 
+        return executeRequest(apiKey, body)
+    }
+
+    private fun executeRequest(apiKey: String, body: MultipartBody): String {
         val request = Request.Builder()
             .url("https://api.openai.com/v1/audio/transcriptions")
             .header("Authorization", "Bearer $apiKey")

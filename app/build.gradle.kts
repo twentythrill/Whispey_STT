@@ -13,6 +13,10 @@ android {
         targetSdk = 34
         versionCode = 3
         versionName = "1.1.0"
+
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
     }
 
     buildFeatures {
@@ -30,6 +34,7 @@ android {
 }
 
 dependencies {
+    implementation(files("libs/sherpa-onnx-2.0.1.aar"))
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.activity:activity-ktx:1.6.0")
     implementation("androidx.core:core-ktx:1.9.0")

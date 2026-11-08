@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
+import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -15,28 +16,35 @@ import android.os.VibratorManager
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
-import android.inputmethodservice.InputMethodService
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.Switch
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
 class WhispeyImeService : InputMethodService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private lateinit var recorder: InMemoryAudioRecorder
+    private lateinit var recorder: DiskAudioRecorder
     private val whisperClient = OpenAiWhisperClient()
     private var state = State.Idle
     private var circleView: CircleRecordView? = null
     private var errorView: TextView? = null
+
+    private var unloadJob: Job? = null
 
     private val backspaceHandler = Handler(Looper.getMainLooper())
     private var backspaceRepeating = false
@@ -55,7 +63,30 @@ class WhispeyImeService : InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
-        recorder = InMemoryAudioRecorder(this)
+        recorder = DiskAudioRecorder(this)
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        cancelUnloadTimer()
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+        if (state != State.Recording && state != State.Processing) {
+            scheduleUnload()
+        }
+    }
+
+    override fun onDestroy() {
+        cancelUnloadTimer()
+        stopBackspaceRepeat()
+        recorder.cancel()
+        scope.launch {
+            OrukeetEngine.release()
+        }
+        scope.cancel()
+        super.onDestroy()
     }
 
     override fun onCreateInputView(): View {
@@ -110,6 +141,70 @@ class WhispeyImeService : InputMethodService() {
 
         val iconTint = WhispeyTheme.iconTint(ctx)
 
+        // Top-center: Local Orukeet vs Cloud Whisper toggle switch with minimal icons
+        val toggleContainer = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+        }
+
+        val localIcon = ImageView(ctx).apply {
+            setImageResource(R.drawable.ic_cpu)
+            setColorFilter(iconTint)
+            layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
+            contentDescription = "Local Orukeet"
+        }
+
+        val cloudIcon = ImageView(ctx).apply {
+            setImageResource(R.drawable.ic_cloud)
+            setColorFilter(iconTint)
+            layoutParams = LinearLayout.LayoutParams(dp(20), dp(20))
+            contentDescription = "Cloud Whisper"
+        }
+
+        val modeSwitch = Switch(ctx).apply {
+            isChecked = WhispeyPrefs.isCloudSelected(ctx)
+            setPadding(dp(6), 0, dp(6), 0)
+        }
+
+        fun updateToggleVisuals(isCloud: Boolean) {
+            localIcon.alpha = if (isCloud) 0.35f else 1.0f
+            cloudIcon.alpha = if (isCloud) 1.0f else 0.35f
+        }
+        updateToggleVisuals(modeSwitch.isChecked)
+
+        modeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            maybeHaptic()
+            WhispeyPrefs.saveCloudSelected(ctx, isChecked)
+            updateToggleVisuals(isChecked)
+        }
+
+        localIcon.setOnClickListener {
+            if (modeSwitch.isChecked) {
+                modeSwitch.isChecked = false
+            }
+        }
+        cloudIcon.setOnClickListener {
+            if (!modeSwitch.isChecked) {
+                modeSwitch.isChecked = true
+            }
+        }
+
+        toggleContainer.addView(localIcon)
+        toggleContainer.addView(modeSwitch)
+        toggleContainer.addView(cloudIcon)
+
+        root.addView(
+            toggleContainer,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            ).apply {
+                topMargin = dp(BTN_MARGIN_DP + 6)
+            }
+        )
+
         // Top-left: switch to previous keyboard.
         val back = cornerButton(ctx, "ic_keyboard_back", iconTint, "Previous keyboard") {
             switchToPreviousKeyboard()
@@ -139,6 +234,21 @@ class WhispeyImeService : InputMethodService() {
         return root
     }
 
+    private fun cancelUnloadTimer() {
+        unloadJob?.cancel()
+        unloadJob = null
+    }
+
+    private fun scheduleUnload() {
+        cancelUnloadTimer()
+        unloadJob = scope.launch {
+            delay(5_000L)
+            withContext(Dispatchers.IO) {
+                OrukeetEngine.release()
+            }
+        }
+    }
+
     /**
      * Returns a Context whose configuration reflects the user's saved theme.
      * For "follow system" the service's own configuration is used as-is; for an
@@ -158,13 +268,6 @@ class WhispeyImeService : InputMethodService() {
         return createConfigurationContext(overrideConfig)
     }
 
-    override fun onDestroy() {
-        stopBackspaceRepeat()
-        recorder.cancel()
-        scope.cancel()
-        super.onDestroy()
-    }
-
     private fun onRecordTapped() {
         when (state) {
             State.Idle -> startRecording()
@@ -180,10 +283,12 @@ class WhispeyImeService : InputMethodService() {
             showError("Microphone permission is required.")
             return
         }
-        if (WhispeyPrefs.apiKey(this).isBlank()) {
-            openSettings()
-            showError("Add your OpenAI API key in settings.")
-            return
+
+        cancelUnloadTimer()
+
+        // Always preload Orukeet in background at recording start, even if toggle is Cloud Whisper
+        scope.launch(Dispatchers.IO) {
+            OrukeetEngine.preload(this@WhispeyImeService)
         }
 
         runCatching {
@@ -199,31 +304,56 @@ class WhispeyImeService : InputMethodService() {
     private fun stopAndTranscribe() {
         maybeHaptic()
         setState(State.Processing)
-        val wavBytes = recorder.stop()
-        if (wavBytes.size <= WAV_HEADER_SIZE) {
-            setState(State.Idle)
-            return
-        }
-        if (!NetworkStatus.isOnline(this)) {
-            showError("No internet connection.")
+        val wavFile = recorder.stop()
+        if (!wavFile.exists() || wavFile.length() <= DiskAudioRecorder.WAV_HEADER_SIZE) {
             setState(State.Idle)
             return
         }
 
-        val apiKey = WhispeyPrefs.apiKey(this)
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching { whisperClient.transcribe(apiKey, wavBytes) }
+        val isCloud = WhispeyPrefs.isCloudSelected(this)
+        if (isCloud) {
+            if (WhispeyPrefs.apiKey(this).isBlank()) {
+                openSettings()
+                showError("Add your OpenAI API key in settings.")
+                setState(State.Idle)
+                return
+            }
+            if (!NetworkStatus.isOnline(this)) {
+                showError("No internet connection.")
+                setState(State.Idle)
+                return
             }
 
-            result.onSuccess { text ->
-                if (text.isNotBlank()) {
-                    commitTranscription(text)
+            val apiKey = WhispeyPrefs.apiKey(this)
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching { whisperClient.transcribe(apiKey, wavFile) }
                 }
-            }.onFailure {
-                showError(readableMessage(it))
+
+                result.onSuccess { text ->
+                    if (text.isNotBlank()) {
+                        commitTranscription(text)
+                    }
+                }.onFailure {
+                    showError(readableMessage(it))
+                }
+                setState(State.Idle)
             }
-            setState(State.Idle)
+        } else {
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching { OrukeetEngine.transcribe(this@WhispeyImeService, wavFile) }
+                }
+
+                result.onSuccess { text ->
+                    if (text.isNotBlank()) {
+                        commitTranscription(text)
+                    }
+                }.onFailure {
+                    showError(readableMessage(it))
+                }
+                setState(State.Idle)
+            }
         }
     }
 
@@ -407,7 +537,6 @@ class WhispeyImeService : InputMethodService() {
         private const val KEYBOARD_HEIGHT_PX = 818
         private const val CIRCLE_SIZE_DP = 132
         private const val SOFT_TAP_AMPLITUDE = 32
-        private const val WAV_HEADER_SIZE = 44
         private const val BACKSPACE_REPEAT_DELAY_MS = 350L
         private const val BACKSPACE_REPEAT_INTERVAL_MS = 55L
         private const val BTN_SIZE_DP = 52
