@@ -140,7 +140,7 @@ class WhispeyImeService : InputMethodService() {
         )
 
         val iconTint = WhispeyTheme.iconTint(ctx)
-        val colorActive = Color.parseColor("#FFFFFF")
+        val colorActive = iconTint
         val colorInactive = Color.parseColor("#666666")
 
         // Top-center: Local Orukeet vs Cloud Whisper toggle switch with minimal icons
